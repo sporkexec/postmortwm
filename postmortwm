@@ -1,0 +1,61 @@
+#!/usr/bin/python2
+from Xlib import X
+from plwm import wmanager, keys, border, color
+import panes, focus
+import os
+
+# Monkeypatch to jump to upper-left corner of window instead of center.
+def warp_patch(self, x = 0, y = 0):
+	self._warppointer(x, y)
+wmanager.Client._warppointer = wmanager.Client.warppointer
+wmanager.Client.warppointer = warp_patch
+
+# FIXME: Kill this.
+os.system('urxvt &')
+
+# TODO: Fix panes to not suck/do what we want.
+# TODO: WM restart/exec? Ratpoison's tmpwm is neat too.
+# TODO: Xinerama, EWMH, struts/reserved regions/fixed windows/nonfocusable windows?
+# For struts, check out plwm.wmanager.Screen.alloc_border.
+
+
+class keybindings(keys.KeyHandler):
+	# TODO: Do this right. (config file)
+	# We could do this like tritium does (config file has keybinding class)
+	# or do some metaclass dickery to make it nicer for the user.
+	# Or we could rewrite KeyHandler if we're feeling adventurous.
+	def Any_t(self, event):
+		self.wm.current_screen.system('urxvt')
+
+	def M_h(self, event):
+		self.wm.move_focus(focus.MOVE_LEFT)
+	def M_j(self, event):
+		self.wm.move_focus(focus.MOVE_DOWN)
+	def M_k(self, event):
+		self.wm.move_focus(focus.MOVE_UP)
+	def M_l(self, event):
+		self.wm.move_focus(focus.MOVE_RIGHT)
+
+	def M_S_comma(self, event):
+		self.wm.current_screen.panes_list[self.wm.current_screen.panes_current].vertical_split()
+	def M_S_period(self, event):
+		self.wm.current_screen.panes_list[self.wm.current_screen.panes_current].horizontal_split()
+		
+
+class wmclient(wmanager.Client, border.BorderClient, panes.panesClient):
+	border_default_width = 1
+	border_color_name = 'black'
+	border_focuscolor_name = 'white'
+
+class wmscreen(wmanager.Screen, color.Color, panes.panesScreen):
+	pass
+
+class wm(wmanager.WindowManager, focus.MoveFocus, panes.panesManager):
+	client_class = wmclient
+	screen_class = wmscreen
+	def __wm_init__(self):
+		keybindings(self)
+
+
+wmanager.main(wm)
+
