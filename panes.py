@@ -217,7 +217,9 @@ class Pane:
 		"Activate whatever is currently my window."
 
 		self.wm.current_screen = self.screen
-		self.screen.current_pane = self
+		if self.screen.current_pane != self:
+			self.screen.current_pane.deactivate()
+			self.screen.current_pane = self
 		if self.window and not self.window.withdrawn:
 			wmanager.debug('Pane', 'Activating window %s in pane %s' %
 							(self.window, self))

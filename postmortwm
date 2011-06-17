@@ -1,7 +1,7 @@
 #!/usr/bin/python2
 from Xlib import X
-from plwm import wmanager, keys, border, color
-import panes, focus
+from plwm import wmanager, keys, color, font
+import panes, focus, outline
 import os
 
 # Monkeypatch to jump to upper-left corner of window instead of center.
@@ -9,6 +9,10 @@ def warp_patch(self, x = 0, y = 0):
 	self._warppointer(x, y)
 wmanager.Client._warppointer = wmanager.Client.warppointer
 wmanager.Client.warppointer = warp_patch
+
+# Monkeypatch, really nasty & unflexible.
+# FIXME: Do this right once you've got your head wrapped around it.
+panes.Pane = outline.OutlinePane
 
 # FIXME: Kill this.
 os.system('urxvt &')
@@ -42,15 +46,13 @@ class keybindings(keys.KeyHandler):
 		self.wm.current_screen.current_pane.horizontal_split()
 
 
-class wmclient(wmanager.Client, border.BorderClient, panes.panesClient):
-	border_default_width = 1
-	border_color_name = 'black'
-	border_focuscolor_name = 'white'
+class wmclient(wmanager.Client, panes.panesClient):
+	pass
 
 class wmscreen(wmanager.Screen, color.Color, panes.panesScreen):
 	pass
 
-class wm(wmanager.WindowManager, focus.MoveFocus, panes.panesManager):
+class wm(wmanager.WindowManager, focus.MoveFocus, panes.panesManager, font.Font):
 	client_class = wmclient
 	screen_class = wmscreen
 	def __wm_init__(self):
