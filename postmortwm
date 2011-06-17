@@ -37,10 +37,10 @@ class keybindings(keys.KeyHandler):
 		self.wm.move_focus('right')
 
 	def M_S_comma(self, event):
-		self.wm.current_screen.panes_list[self.wm.current_screen.panes_current].vertical_split()
+		self.wm.current_screen.current_pane.vertical_split()
 	def M_S_period(self, event):
-		self.wm.current_screen.panes_list[self.wm.current_screen.panes_current].horizontal_split()
-		
+		self.wm.current_screen.current_pane.horizontal_split()
+
 
 class wmclient(wmanager.Client, border.BorderClient, panes.panesClient):
 	border_default_width = 1

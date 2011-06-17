@@ -51,9 +51,7 @@ class panesManager:
 
 	def __wm_init__(self):
 		"Enable activation, then activate the first pane."
-
-		self.current_screen.panes_list[self.panes_current].activate()
-
+		self.current_pane.activate()
 
 
 class panesScreen:
@@ -62,7 +60,7 @@ class panesScreen:
 	def __screen_client_init__(self):
 		"Create the initial pane object for this screen."
 		self.panes_list = []
-		self.panes_current = None
+		self.current_pane = None
 
 		wmanager.debug('panesScreen', 'Initializing screen %d', self.number)
 		self.dispatch.add_handler(X.ConfigureRequest, self.panes_configure)
@@ -95,15 +93,15 @@ class panesScreen:
 
 		wmanager.debug('panesManager', 'added pane %s', `pane`)
 		self.panes_list.append(pane)
-		if self.panes_current is None: self.panes_current = 0
+		if self.current_pane is None: self.current_pane = self.panes_list[0]
 
 	def panes_remove(self, test):
 		"Remove panes that match the filter."
 
-		old = self.panes_list[self.panes_current]
+		old = self.current_pane
 		self.panes_list = filter(cfilter.Not(test), self.panes_list)
-		try: self.panes_current = self.panes_list.index(old)
-		except ValueError: self.panes_current = 0
+		try: self.panes_list.index(old)
+		except ValueError: self.current_pane = self.panes_list[0]
 
 
 class panesClient:
@@ -125,7 +123,7 @@ class panesClient:
 			self.panes_gravity = self.wm.panes_window_gravity
 
 		self.panes_pane = None
-		pane = self.screen.panes_list[self.screen.panes_current]
+		pane = self.screen.current_pane
 		if pane.screen != self.screen:
 			pane = filter(lambda p, m=self.screen: p.screen == m, self.screen.panes_list)[0]
 		pane.add_window(self)
@@ -180,7 +178,7 @@ class Pane:
 			if not clients: self.window = None
 			else:
 				self.window = clients[len(clients) - 1]
-				if self.screen.panes_list[self.screen.panes_current] == self:
+				if self.screen.current_pane == self:
 					self.activate()
 
 	def place_window(self, window = None):
@@ -212,7 +210,7 @@ class Pane:
 		"A place to do anything appropriate for us when losing the focus."
 
 		if self.window and not self.window.withdrawn:
-			if self.screen.panes_list[self.screen.panes_current] == self:
+			if self.screen.current_pane == self:
 				self.wm.set_current_client(None)
 
 	def activate(self):
