@@ -217,6 +217,7 @@ class Pane:
 		"Activate whatever is currently my window."
 
 		self.wm.current_screen = self.screen
+		self.screen.current_pane = self
 		if self.window and not self.window.withdrawn:
 			wmanager.debug('Pane', 'Activating window %s in pane %s' %
 							(self.window, self))
@@ -261,6 +262,12 @@ class Pane:
 			window.panes_pane = self
 			self.place_window(window)
 		self.activate()
+
+	def get_edges(self):
+		"""Return the edges of the pane as (top, right, bottom, left)"""
+		return (self.y, self.x + self.width,
+			self.y + self.height, self.x)
+
 
 class panefilter:
 	"Filter for windows mapped in the current pane."

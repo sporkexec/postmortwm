@@ -36,11 +36,10 @@ except ImportError, e:
 		return wrapper
 
 class MoveFocus:
-	move_focus_ignore_clients = cfilter.false
 	__diff_filters = {
-		# Filters to select windows in the correct general direction.
-		# Chosen windows will tend to be towards upper left corner when
-		# windows are staggered.
+		# Filters to select panes in the correct general direction.
+		# Chosen panes will tend to be towards upper left corner when
+		# panes are staggered.
 		# inputs: from_edges, to_edges
 		# returns filtering bool
 
@@ -54,7 +53,7 @@ class MoveFocus:
 		'left': lambda (tt, rr, bb, ll), (t, r, b, l): r <= ll and t <= tt,
 	}
 	__diff_orders = {
-		# Once filtered by direction, chooses the closest window according to
+		# Once filtered by direction, chooses the closest pane according to
 		# upper left corner coordinates.
 		# inputs: from_edges, to_edges
 		# returns two numbers to be used as sorting keys, sort of like:
@@ -68,14 +67,8 @@ class MoveFocus:
 		'left': lambda (tt, rr, bb, ll), (t, r, b, l): (abs(ll - l), abs(tt - t)),
 	}
 
-	def get_client_edges(self, client):
-		"""Return the edges of CLIENT as (top, right, bottom, left)"""
-
-		return (client.get_top_edge(), client.get_right_edge(),
-			client.get_bottom_edge(), client.get_left_edge())
-
 	def move_focus(self, dir):
-		"""Move focus to the next mapped client in direction DIR.
+		"""Move focus to the next pane in direction DIR.
 
 		DIR is either 'up', 'down', 'left' or 'right'.
 		We assume a perfectly tiled layout because it's a tiled wm...
@@ -86,19 +79,19 @@ class MoveFocus:
 		if self.current_screen is None:
 			return
 
-		clients = self.current_screen.query_clients(cfilter.mapped, stackorder = 1)
+		screen = self.current_screen
+		panes = screen.panes_list
 
-		# No clients, meaningless to try to change focus.
-		if len(clients) == 0:
+		# No panes, meaningless to try to change focus.
+		if len(panes) == 0:
 			return
 
-		if self.focus_client:
-			# Find the closest client to the currently focused client.
-			edges = self.get_client_edges(self.focus_client)
+		if screen.current_pane:
+			# Find the closest pane to the currently focused pane.
+			edges = screen.current_pane.get_edges()
 			dfilter = partial(self.__diff_filters[dir], edges)
 			dsort = partial(self.__diff_orders[dir], edges)
 
-			print "\n\n", edges
 			best = None
 			bestdiff = None
 
@@ -113,27 +106,21 @@ class MoveFocus:
 			# Seems much more straightforward than making a kludge to translate
 			# a tab key into x many spaces on disk and a delete key on a tab
 			# boundary to x many characters deleted. /rant
-			for c in clients:
-				c_edges = self.get_client_edges(c)
-				print c_edges
-				if (c is self.focus_client or self.move_focus_ignore_clients(c)
-						or not dfilter(c_edges)):
+			for p in panes:
+				p_edges = p.get_edges()
+				if p is screen.current_pane or not dfilter(p_edges):
 					continue
 
-
-				c_diff = dsort(c_edges)
-				if (bestdiff is None or c_diff[0] < bestdiff[0] or
-						(c_diff[0] == bestdiff[0] and c_diff[1] < bestdiff[1])):
-					best = c
-					bestdiff = c_diff
+				p_diff = dsort(p_edges)
+				if (bestdiff is None or p_diff[0] < bestdiff[0] or
+						(p_diff[0] == bestdiff[0] and p_diff[1] < bestdiff[1])):
+					best = p
+					bestdiff = p_diff
 
 			if best is not None:
 				best.activate()
 
 		else:
-			# No client is focused. Focus anything.
-			for c in clients:
-				if not self.move_focus_ignore_clients(c):
-					c.activate()
-					return
+			# No pane is focused. Focus anything.
+			panes[0].activate()
 
