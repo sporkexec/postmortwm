@@ -28,13 +28,13 @@ class keybindings(keys.KeyHandler):
 		self.wm.current_screen.system('urxvt')
 
 	def M_h(self, event):
-		self.wm.move_focus(focus.MOVE_LEFT)
+		self.wm.move_focus('left')
 	def M_j(self, event):
-		self.wm.move_focus(focus.MOVE_DOWN)
+		self.wm.move_focus('down')
 	def M_k(self, event):
-		self.wm.move_focus(focus.MOVE_UP)
+		self.wm.move_focus('up')
 	def M_l(self, event):
-		self.wm.move_focus(focus.MOVE_RIGHT)
+		self.wm.move_focus('right')
 
 	def M_S_comma(self, event):
 		self.wm.current_screen.panes_list[self.wm.current_screen.panes_current].vertical_split()

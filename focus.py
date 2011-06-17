@@ -35,11 +35,6 @@ except ImportError, e:
 			return fun(*args_called, **kw)
 		return wrapper
 
-MOVE_UP = 1
-MOVE_DOWN = 2
-MOVE_LEFT = 3
-MOVE_RIGHT = 4
-
 class MoveFocus:
 	move_focus_ignore_clients = cfilter.false
 	__diff_filters = {
@@ -50,13 +45,13 @@ class MoveFocus:
 		# returns filtering bool
 
 		# dest must be below and not to the right of current
-		MOVE_DOWN: lambda (tt, rr, bb, ll), (t, r, b, l): bb <= t and l <= ll,
+		'down': lambda (tt, rr, bb, ll), (t, r, b, l): bb <= t and l <= ll,
 		# dest must be above and not to the right of current
-		MOVE_UP: lambda (tt, rr, bb, ll), (t, r, b, l): b <= tt and l <= ll,
+		'up': lambda (tt, rr, bb, ll), (t, r, b, l): b <= tt and l <= ll,
 		# dest must be to the right of and not below current
-		MOVE_RIGHT: lambda (tt, rr, bb, ll), (t, r, b, l): rr <= l and t <= tt,
+		'right': lambda (tt, rr, bb, ll), (t, r, b, l): rr <= l and t <= tt,
 		# dest must be to the left of and not below current
-		MOVE_LEFT: lambda (tt, rr, bb, ll), (t, r, b, l): r <= ll and t <= tt,
+		'left': lambda (tt, rr, bb, ll), (t, r, b, l): r <= ll and t <= tt,
 	}
 	__diff_orders = {
 		# Once filtered by direction, chooses the closest window according to
@@ -66,11 +61,11 @@ class MoveFocus:
 		# ORDER BY ret[0] ASC, ret[1] ASC LIMIT 1
 
 		# vdiff, hdiff
-		MOVE_DOWN: lambda (tt, rr, bb, ll), (t, r, b, l): (abs(tt - t), abs(ll - l)),
-		MOVE_UP: lambda (tt, rr, bb, ll), (t, r, b, l): (abs(tt - t), abs(ll - l)),
+		'down': lambda (tt, rr, bb, ll), (t, r, b, l): (abs(tt - t), abs(ll - l)),
+		'up': lambda (tt, rr, bb, ll), (t, r, b, l): (abs(tt - t), abs(ll - l)),
 		# hdiff, vdiff
-		MOVE_RIGHT: lambda (tt, rr, bb, ll), (t, r, b, l): (abs(ll - l), abs(tt - t)),
-		MOVE_LEFT: lambda (tt, rr, bb, ll), (t, r, b, l): (abs(ll - l), abs(tt - t)),
+		'right': lambda (tt, rr, bb, ll), (t, r, b, l): (abs(ll - l), abs(tt - t)),
+		'left': lambda (tt, rr, bb, ll), (t, r, b, l): (abs(ll - l), abs(tt - t)),
 	}
 
 	def get_client_edges(self, client):
@@ -82,7 +77,7 @@ class MoveFocus:
 	def move_focus(self, dir):
 		"""Move focus to the next mapped client in direction DIR.
 
-		DIR is either MOVE_UP, MOVE_DOWN, MOVE_LEFT or MOVE_RIGHT.
+		DIR is either 'up', 'down', 'left' or 'right'.
 		We assume a perfectly tiled layout because it's a tiled wm...
 		You may get stuck if there are holes between tiles.
 		We currently do not wrap around the screen.
