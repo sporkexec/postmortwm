@@ -32,33 +32,20 @@ from Xlib import X, Xutil, Xatom
 from plwm import wmanager, wmevents, modewindow, cfilter
 
 WM_TRANSIENT_FOR = None
-class panesManager:
-	"panesManager - pane mixin for window manager."
+class panesScreen:
+	"paneScreen - pane mixin for Screens."
 
 	panes_window_gravity = X.CenterGravity
 	panes_maxsize_gravity = X.CenterGravity
 	panes_transient_gravity = X.CenterGravity
 
-	def __wm_screen_init__(self):
-		"Create the list of panes with no current pane."
-		global WM_TRANSIENT_FOR
-
-		wmanager.debug('panesManager', 'inited')
-
-		# Warning - if we manage more than one display, this breaks!
-		if not WM_TRANSIENT_FOR:
-			WM_TRANSIENT_FOR = self.display.intern_atom("WM_TRANSIENT_FOR")
-
-	def __wm_init__(self):
-		"Enable activation, then activate the first pane."
-		self.current_pane.activate()
-
-
-class panesScreen:
-	"paneScreen - pane mixin for Screens."
-
 	def __screen_client_init__(self):
 		"Create the initial pane object for this screen."
+		global WM_TRANSIENT_FOR
+		# Warning - if we manage more than one display, this breaks!
+		if not WM_TRANSIENT_FOR:
+			WM_TRANSIENT_FOR = self.wm.display.intern_atom("WM_TRANSIENT_FOR")
+
 		self.panes_list = []
 		self.current_pane = None
 
@@ -116,11 +103,11 @@ class panesClient:
 		wmanager.debug('Pane', 'Initing client %s', self)
 		# Set this clients gravity
 		if self.window.get_property(WM_TRANSIENT_FOR, Xatom.WINDOW, 0, 1) is not None:
-			self.panes_gravity = self.wm.panes_transient_gravity
+			self.panes_gravity = self.screen.panes_transient_gravity
 		elif self.sizehints and self.sizehints.flags & Xutil.PMaxSize:
-			self.panes_gravity = self.wm.panes_maxsize_gravity
+			self.panes_gravity = self.screen.panes_maxsize_gravity
 		else:
-			self.panes_gravity = self.wm.panes_window_gravity
+			self.panes_gravity = self.screen.panes_window_gravity
 
 		self.panes_pane = None
 		pane = self.screen.current_pane
