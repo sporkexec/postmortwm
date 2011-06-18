@@ -212,6 +212,9 @@ class Pane:
 		if self.window and not self.window.withdrawn:
 			if self.screen.current_pane == self:
 				self.wm.set_current_client(None)
+		event = paneBlur()
+		event.pane = self
+		self.wm.misc_dispatch.dispatch_event(event)
 
 	def activate(self):
 		"Activate whatever is currently my window."
@@ -225,6 +228,9 @@ class Pane:
 							(self.window, self))
 			self.window.activate()
 			self.window.warppointer()
+		event = paneFocus()
+		event.pane = self
+		self.wm.misc_dispatch.dispatch_event(event)
 
 	def horizontal_split(self, frac = .5):
 		"Split the pane horizontally, taking frac off the bottom."
@@ -238,7 +244,7 @@ class Pane:
 		map(self.place_window, self.screen.query_clients(panefilter(self)))
 		new_pane = Pane(self.screen, self.x, new_y, self.width, new_height)
 		self.screen.panes_add(new_pane)
-		#self.screen.panes_activate(new_pane)
+		new_pane.activate()
 
 	def vertical_split(self, frac = .5):
 		"Split the pane vertically, taking frac off the right."
@@ -252,7 +258,7 @@ class Pane:
 		map(self.place_window, self.screen.query_clients(panefilter(self)))
 		new_pane = Pane(self.screen, new_x, self.y, new_width, self.height)
 		self.screen.panes_add(new_pane)
-		#self.screen.panes_activate(new_pane)
+		new_pane.activate()
 
 	def maximize(self):
 		"Make me the only pane on my screen."
@@ -283,3 +289,67 @@ class panefilter:
 		"Check to see if this is our pane."
 
 		return self.pane == window.panes_pane and not cfilter.iconified(window)
+
+
+class paneFocus:
+	pane = None
+class paneBlur:
+	pane = None
+
+
+# TODO MAYBE: Outlines are actually drawn within the pane, ie obscuring windows. Is this bad?
+class OutlinePane:
+	"""Draws a border around (within, rather) a pane.
+
+	We use four small windows to draw the edges of the border. Reparenting or
+	using normal border won't work because we won't always have a window to
+	draw around; we only deal with panes.
+	"""
+	border_width = 1
+	group = 'Pane'
+
+	def __init__(self, wm):
+		handlers = (
+			(self.outline_show, lambda e: isinstance(e, paneFocus), self.group),
+			(self.outline_hide, lambda e: isinstance(e, paneBlur), self.group),
+		)
+		for h in handlers:
+			wm.misc_dispatch.add_handler(*h)
+
+	def outline_show(self, event):
+		self.outline_hide(event)
+		pane = event.pane
+		pane.outline_windows = []
+
+		# Grab 4 windows with no border, white background.
+		# TODO: Figure out how to do more colors.
+		for _ in range(4):
+			pane.outline_windows.append(pane.screen.root.create_window(
+				0, 0, 1, 1, 0, X.CopyFromParent,
+				background_pixel = pane.screen.info.white_pixel,
+				save_under = 1
+				))
+
+		bw = self.border_width
+		edges = pane.get_edges()
+		width = edges[1] - edges[3]
+		height = edges[2] - edges[0]
+
+		# Resize windows.
+		pane.outline_windows[0].configure(x = edges[3], y = edges[0], width = width, height = bw) #t
+		pane.outline_windows[1].configure(x = edges[1] - bw, y = edges[0], width = bw, height = height) #r
+		pane.outline_windows[2].configure(x = edges[3], y = edges[2] - bw, width = width, height = bw) #b
+		pane.outline_windows[3].configure(x = edges[3], y = edges[0], width = bw, height = height) #l
+
+		for w in pane.outline_windows:
+			w.configure(stack_mode = X.Above)
+			w.map()
+
+	def outline_hide(self, event):
+		pane = event.pane
+		if not hasattr(pane, 'outline_windows') or pane.outline_windows is None:
+			return
+		for w in pane.outline_windows:
+			w.destroy()
+		pane.outline_windows = None
+

@@ -1,27 +1,22 @@
 #!/usr/bin/python2
 from Xlib import X
-from plwm import wmanager, keys, color, font
-import panes, focus, outline
+from plwm import wmanager, keys, color, event
+import panes, focus
 import os
 
 # Monkeypatch to jump to upper-left corner of window instead of center.
+# Not worth subclassing or cloning imo.
 def warp_patch(self, x = 0, y = 0):
 	self._warppointer(x, y)
 wmanager.Client._warppointer = wmanager.Client.warppointer
 wmanager.Client.warppointer = warp_patch
 
-# Monkeypatch, really nasty & unflexible.
-# FIXME: Do this right once you've got your head wrapped around it.
-panes.Pane = outline.OutlinePane
-
 # FIXME: Kill this.
 os.system('urxvt &')
 
-# TODO: Fix panes to not suck/do what we want.
 # TODO: WM restart/exec? Ratpoison's tmpwm is neat too.
 # TODO: Xinerama, EWMH, struts/reserved regions/fixed windows/nonfocusable windows?
 # For struts, check out plwm.wmanager.Screen.alloc_border.
-
 
 class keybindings(keys.KeyHandler):
 	# TODO: Do this right. (config file)
@@ -52,12 +47,20 @@ class wmclient(wmanager.Client, panes.panesClient):
 class wmscreen(wmanager.Screen, color.Color, panes.panesScreen):
 	pass
 
-class wm(wmanager.WindowManager, focus.MoveFocus, panes.panesManager, font.Font):
+class wm(wmanager.WindowManager, focus.MoveFocus, panes.panesManager):
 	client_class = wmclient
 	screen_class = wmscreen
 	def __wm_init__(self):
 		keybindings(self)
-
+		# This Dispatcher business is overengineering at its fucking finest.
+		# Might as well use it since it's already there, though...
+		# Anytime I think of hierarchical event dispatchers or asynchronous
+		# message queues my mind is filled with images of fresh college grads
+		# quivering with delight over web 3.0 and building scalable "apps" with
+		# Clojure. Or perhaps I've been listening to Ted Dziuba for too long.
+		# (google.com/search?q=taco+bell+programming, highly recommended.)
+		self.misc_dispatch = event.Dispatcher(None)
+		self.outline_pane = panes.OutlinePane(self)
 
 wmanager.main(wm)
 
