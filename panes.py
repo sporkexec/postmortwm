@@ -30,6 +30,16 @@ The rest of the UI - well, that's up to you."""
 
 from Xlib import X, Xutil, Xatom
 from plwm import wmanager, wmevents, modewindow, cfilter
+try:
+	from functools import partial # Python >= 2.5
+except ImportError, e:
+	def partial(fun, **kwargs):
+		def wrapper(*args_called, **kwargs_called):
+			kw = dict(kwargs)
+			kw.update(kwargs_called)
+			return fun(*args_called, **kw)
+		return wrapper
+
 
 WM_TRANSIENT_FOR = None
 class panesScreen:
@@ -278,11 +288,76 @@ class Pane:
 		self.window = self.window_list[index]
 		self.activate()
 
+	__diff_filters = {
+		# Filters to select panes in the correct general direction.
+		# Chosen panes will tend to be towards upper left corner when
+		# panes are staggered.
+		# inputs: from_edges, to_edges
+		# returns filtering bool
+
+		# dest must be below and not to the right of current
+		'down': lambda (tt, rr, bb, ll), (t, r, b, l): bb <= t and l <= ll,
+		# dest must be above and not to the right of current
+		'up': lambda (tt, rr, bb, ll), (t, r, b, l): b <= tt and l <= ll,
+		# dest must be to the right of and not below current
+		'right': lambda (tt, rr, bb, ll), (t, r, b, l): rr <= l and t <= tt,
+		# dest must be to the left of and not below current
+		'left': lambda (tt, rr, bb, ll), (t, r, b, l): r <= ll and t <= tt,
+	}
+	__diff_orders = {
+		# Once filtered by direction, chooses the closest pane according to
+		# upper left corner coordinates.
+		# inputs: from_edges, to_edges
+		# returns two numbers to be used as sorting keys, sort of like:
+		# ORDER BY ret[0] ASC, ret[1] ASC LIMIT 1
+
+		# vdiff, hdiff
+		'down': lambda (tt, rr, bb, ll), (t, r, b, l): (abs(tt - t), abs(ll - l)),
+		'up': lambda (tt, rr, bb, ll), (t, r, b, l): (abs(tt - t), abs(ll - l)),
+		# hdiff, vdiff
+		'right': lambda (tt, rr, bb, ll), (t, r, b, l): (abs(ll - l), abs(tt - t)),
+		'left': lambda (tt, rr, bb, ll), (t, r, b, l): (abs(ll - l), abs(tt - t)),
+	}
+
 	def get_edges(self):
 		"""Return the edges of the pane as (top, right, bottom, left)"""
 		return (self.y, self.x + self.width,
 			self.y + self.height, self.x)
 
+	def get_neighbor(self, dir):
+		"""Find the closest pane in the specified direction.
+
+		dir is either 'up', 'down', 'left' or 'right'.
+		We assume a perfectly tiled layout because it's a tiled wm...
+		You may get stuck if there are holes between tiles.
+		We currently do not wrap around the screen."""
+
+		edges = self.get_edges()
+		dfilter = partial(self.__diff_filters[dir], edges)
+		dsort = partial(self.__diff_orders[dir], edges)
+
+		best = None
+		bestdiff = None
+
+		for p in self.screen.panes_list:
+			p_edges = p.get_edges()
+			if p is self or not dfilter(p_edges):
+				continue
+
+			p_diff = dsort(p_edges)
+			if (bestdiff is None or p_diff[0] < bestdiff[0] or
+					(p_diff[0] == bestdiff[0] and p_diff[1] < bestdiff[1])):
+				best = p
+				bestdiff = p_diff
+		return best
+
+	def move_window(self, dir):
+		"""Give the current window to another pane."""
+		neighbor = self.get_neighbor(dir)
+		if neighbor is None or self.window is None:
+			self.wm.move_focus(dir)
+			return
+		neighbor.add_window(self.window)
 
 class panefilter:
 	"Filter for windows mapped in the current pane."

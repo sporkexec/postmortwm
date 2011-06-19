@@ -39,6 +39,15 @@ class keybindings(keys.KeyHandler):
 	def M_l(self, event):
 		self.wm.move_focus('right')
 
+	def M_S_h(self, event):
+		self.wm.current_screen.current_pane.move_window('left')
+	def M_S_j(self, event):
+		self.wm.current_screen.current_pane.move_window('down')
+	def M_S_k(self, event):
+		self.wm.current_screen.current_pane.move_window('up')
+	def M_S_l(self, event):
+		self.wm.current_screen.current_pane.move_window('right')
+
 	def M_S_comma(self, event):
 		self.wm.current_screen.current_pane.vertical_split()
 		self._spawn_term()
