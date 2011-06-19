@@ -67,12 +67,12 @@ class panesScreen:
 		"A window changed, so pass it on to my pane."
 
 		w = self.get_window(event.window)
-		if w and w.panes_pane:
+		if w and w.pane:
 			if event.value_mask & (X.CWX | X.CWY | X.CWWidth | X.CWHeight):
-				w.panes_pane.place_window(w)
+				w.pane.place_window(w)
 			if event.value_mask & X.CWStackMode and event.stack_mode == X.Above \
 				and self.allow_self_changes(w):
-				w.panes_pane.add_window(w)
+				w.pane.add_window(w)
 
 	#####
 	def panes_add(self, pane):
@@ -109,7 +109,7 @@ class panesClient:
 		else:
 			self.panes_gravity = self.screen.panes_window_gravity
 
-		self.panes_pane = None
+		self.pane = None
 		pane = self.screen.current_pane
 		if pane.screen != self.screen:
 			pane = filter(lambda p, m=self.screen: p.screen == m, self.screen.panes_list)[0]
@@ -120,7 +120,7 @@ class panesClient:
 	def panes_unmap(self, event):
 		"The window is going away or gone - make sure it's not taking up a pane"
 
-		if self.panes_pane: self.panes_pane.remove_window(self)
+		if self.pane: self.pane.remove_window(self)
 
 
 class Pane:
@@ -132,48 +132,58 @@ class Pane:
 		self.screen, self.x, self.y, self.width, self.height = screen, x, y, width, height
 		self.wm = screen.wm
 		self.window = None
+		self.window_list = []
 
 	def add_window(self, window):
 		"Add a window to this pane."
 
+		if window in self.window_list:
+			return
 		wmanager.debug('Pane', 'Adding window %s to pane %s', window, self)
-		if window == self.window: return
-		old = window.panes_pane
-		if old != self:
-			if old: old.remove_window(window)
+
+		self.window_list.append(window)
+		prev_pane = window.pane
+		if prev_pane != self:
+			if prev_pane:
+				prev_pane.remove_window(window)
 			self.place_window(window)
-		window.panes_pane = self
-		if self.window: self.deactivate()
+			window.pane = self
 		self.window = window
 		self.activate()
 
-	def iconify_window(self):
-		"Iconify my window, if any."
-
-		if self.window:
-			self.window.iconify()
-			self.remove_window(self.window)
-
 	def remove_window(self, window):
-		"Tag a window as not belonging to me."
+		"Disown a window and cycle a new one into focus."
 
+		if window.pane != self or window not in self.window_list:
+			return
 		wmanager.debug('Pane', 'Removing window %s from pane %s' % (window, self))
-		window.panes_pane = None
+		window.pane = None
+		windex = self.window_list.index(window)
+		self.window_list.remove(window)
 		if self.window == window:
-			self.deactivate()
-			clients = self.screen.query_clients(panefilter(self), 1)
-			if not clients: self.window = None
+			# Jump back towards the beginning of the window list.
+			if windex > 0:
+				windex -= 1
+			elif self.window_list != []:
+				windex = 0
 			else:
-				self.window = clients[len(clients) - 1]
+				self.window = None
 				if self.screen.current_pane == self:
-					self.activate()
+					self.wm.set_current_client(None)
+				return
+
+			self.window = self.window_list[windex]
+			if self.screen.current_pane == self:
+				self.activate()
 
 	def place_window(self, window = None):
 		"Figure out where the window should be put."
 
-		if not window: window = self.window
-		wmanager.debug('Pane', 'Placing window %s for pane %s' %
-						(window, self))
+		if window is None:
+			window = self.window
+		if window is None:
+			return
+		wmanager.debug('Pane', 'Placing window %s for pane %s' % (window, self))
 
 		# Bypassing size hints/gravity, they seem useless for tiles.
 		width = self.width - 2 * window.border_width
@@ -188,7 +198,8 @@ class Pane:
 	def force_window(self):
 		"Try and force an application to notice what size it's window is."
 
-		if not self.window: return
+		if not self.window:
+			return
 		self.window.resize(self.width / 2, self.height / 2)
 		self.wm.display.flush()
 		self.place_window()
@@ -254,8 +265,17 @@ class Pane:
 							x.screen == s and x != m)
 		self.screen.panes_fullscreen(self)
 		for window in self.screen.query_clients():
-			window.panes_pane = self
+			window.pane = self
 			self.place_window(window)
+		self.activate()
+
+	def switch_window(self, index):
+		"Raise and focus a particular window owned by this pane."
+		if not 0 <= index < len(self.window_list):
+			return
+		if self.window and self.window_list.index(self.window) == index:
+			return
+		self.window = self.window_list[index]
 		self.activate()
 
 	def get_edges(self):
@@ -266,17 +286,12 @@ class Pane:
 
 class panefilter:
 	"Filter for windows mapped in the current pane."
-
 	def __init__(self, pane):
 		"Set the pane we're active in."
-
 		self.pane = pane
-
 	def __call__(self, window):
 		"Check to see if this is our pane."
-
-		return self.pane == window.panes_pane and not cfilter.iconified(window)
-
+		return self.pane == window.pane
 
 class paneFocus:
 	pane = None

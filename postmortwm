@@ -20,11 +20,15 @@ class keybindings(keys.KeyHandler):
 	# We could do this like tritium does (config file has keybinding class)
 	# or do some metaclass dickery to make it nicer for the user.
 	# Or we could rewrite KeyHandler if we're feeling adventurous.
+	def _spawn(self, command):
+		self.wm.current_screen.system(command)
 	def _spawn_term(self):
-		self.wm.current_screen.system('urxvt')
+		self._spawn('urxvt')
 		
 	def M_S_Return(self, event):
 		self._spawn_term()
+	def M_p(self, event):
+		self._spawn('dmenu_run')
 
 	def M_h(self, event):
 		self.wm.move_focus('left')
@@ -41,6 +45,17 @@ class keybindings(keys.KeyHandler):
 	def M_S_period(self, event):
 		self.wm.current_screen.current_pane.horizontal_split()
 		self._spawn_term()
+
+	def M_1(self, event):
+		self.wm.current_screen.current_pane.switch_window(0)
+	def M_2(self, event):
+		self.wm.current_screen.current_pane.switch_window(1)
+	def M_3(self, event):
+		self.wm.current_screen.current_pane.switch_window(2)
+	def M_4(self, event):
+		self.wm.current_screen.current_pane.switch_window(3)
+	def M_5(self, event):
+		self.wm.current_screen.current_pane.switch_window(4)
 
 
 class wmclient(wmanager.Client, panes.panesClient):
