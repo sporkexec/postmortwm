@@ -1,8 +1,9 @@
 #!/usr/bin/python2
+import os, sys
 from Xlib import X
 from plwm import wmanager, keys, color, event
 import panes, focus
-import os, sys
+from resize import resize_pane
 
 # Monkeypatch to jump to upper-left corner of window instead of center.
 # Not worth subclassing or cloning imo.
@@ -56,10 +57,14 @@ class keybindings(keys.KeyHandler):
 		self.wm.current_screen.current_pane.horizontal_split()
 		self._spawn_term()
 
-	def M_minus(self, event): pass # h shrink
-	def M_equal(self, event): pass # h grow
-	def M_underscore(self, event): pass # v shrink
-	def M_plus(self, event): pass # v grow
+	def M_minus(self, event):
+		resize_pane(self.wm.current_screen.current_pane, 'hshrink')
+	def M_equal(self, event):
+		resize_pane(self.wm.current_screen.current_pane, 'hgrow')
+	def M_underscore(self, event):
+		resize_pane(self.wm.current_screen.current_pane, 'vshrink')
+	def M_plus(self, event):
+		resize_pane(self.wm.current_screen.current_pane, 'vgrow')
 
 	def M_1(self, event):
 		self.wm.current_screen.current_pane.switch_window(0)

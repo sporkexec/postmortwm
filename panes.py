@@ -249,7 +249,7 @@ class Pane:
 		new_height = int(self.height * frac)
 		self.height = self.height - new_height
 		new_y = self.y + self.height
-		map(self.place_window, self.screen.query_clients(panefilter(self)))
+		self.replace_all()
 		new_pane = Pane(self.screen, self.x, new_y, self.width, new_height)
 		self.screen.panes_add(new_pane)
 		new_pane.activate()
@@ -263,7 +263,7 @@ class Pane:
 		new_width = int(self.width * frac)
 		self.width = self.width - new_width
 		new_x = self.x + self.width
-		map(self.place_window, self.screen.query_clients(panefilter(self)))
+		self.replace_all()
 		new_pane = Pane(self.screen, new_x, self.y, new_width, self.height)
 		self.screen.panes_add(new_pane)
 		new_pane.activate()
@@ -278,6 +278,10 @@ class Pane:
 			window.pane = self
 			self.place_window(window)
 		self.activate()
+
+	def replace_all(self):
+		'''Replace every window in the pane.'''
+		map(self.place_window, self.screen.query_clients(panefilter(self)))
 
 	def switch_window(self, index):
 		"Raise and focus a particular window owned by this pane."
