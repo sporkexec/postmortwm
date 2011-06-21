@@ -2,12 +2,12 @@
 from Xlib import X
 from plwm import wmanager, keys, color, event
 import panes, focus
-import os
+import os, sys
 
 # Monkeypatch to jump to upper-left corner of window instead of center.
 # Not worth subclassing or cloning imo.
 def warp_patch(self, x = 0, y = 0):
-	self._warppointer(x, y)
+	return self._warppointer(x, y)
 wmanager.Client._warppointer = wmanager.Client.warppointer
 wmanager.Client.warppointer = warp_patch
 
@@ -20,6 +20,7 @@ class keybindings(keys.KeyHandler):
 	# We could do this like tritium does (config file has keybinding class)
 	# or do some metaclass dickery to make it nicer for the user.
 	# Or we could rewrite KeyHandler if we're feeling adventurous.
+	# TODO MAYBE: Add prefix support (a la screen & ratpoison) to KeyHandler.
 	def _spawn(self, command):
 		self.wm.current_screen.system(command)
 	def _spawn_term(self):
@@ -55,6 +56,11 @@ class keybindings(keys.KeyHandler):
 		self.wm.current_screen.current_pane.horizontal_split()
 		self._spawn_term()
 
+	def M_minus(self, event): pass # h shrink
+	def M_equal(self, event): pass # h grow
+	def M_underscore(self, event): pass # v shrink
+	def M_plus(self, event): pass # v grow
+
 	def M_1(self, event):
 		self.wm.current_screen.current_pane.switch_window(0)
 	def M_2(self, event):
@@ -66,6 +72,11 @@ class keybindings(keys.KeyHandler):
 	def M_5(self, event):
 		self.wm.current_screen.current_pane.switch_window(4)
 
+	def M_q(self, event):
+		# FIXME: Preserve layout (or some of it) on restart.
+		self.wm.display.sync()
+		os.execv(sys.argv[0], sys.argv)
+		sys.exit(1) # Shouldn't get this far.
 
 class wmclient(wmanager.Client, panes.panesClient):
 	pass
@@ -76,16 +87,15 @@ class wmscreen(wmanager.Screen, color.Color, panes.panesScreen):
 class wm(wmanager.WindowManager, focus.MoveFocus):
 	client_class = wmclient
 	screen_class = wmscreen
+	def __init__(self, *args, **kwargs):
+		# If this is placed in __wm_init__ instead and there are windows open
+		# before the wm starts (ie. we restart), plwm tries to place the window
+		# before __wm_init__ and stuff breaks because misc_dispatch isn't there.
+		self.misc_dispatch = event.Dispatcher(None)
+		return wmanager.WindowManager.__init__(self, *args, **kwargs)
+
 	def __wm_init__(self):
 		keybindings(self)
-		# This Dispatcher business is overengineering at its fucking finest.
-		# Might as well use it since it's already there, though...
-		# Anytime I think of hierarchical event dispatchers or asynchronous
-		# message queues my mind is filled with images of fresh college grads
-		# quivering with delight over web 3.0 and building scalable "apps" with
-		# Clojure. Or perhaps I've been listening to Ted Dziuba for too long.
-		# (google.com/search?q=taco+bell+programming, highly recommended.)
-		self.misc_dispatch = event.Dispatcher(None)
 		self.outline_pane = panes.OutlinePane(self)
 
 wmanager.main(wm)
